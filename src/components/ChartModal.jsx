@@ -8,7 +8,7 @@ const ChartModal = ({ tvSymbol, onClose }) => {
         <button className="close-btn" onClick={onClose}><X size={24} /></button>
         <div className="chart-container">
           <iframe
-            src={`https://s.tradingview.com/widgetembed/?symbol=${tvSymbol}&interval=D&hidesidetoolbar=1&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&showpopupbutton=1&locale=en`}
+            src={`https://s.tradingview.com/widgetembed/?symbol=${tvSymbol}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&showpopupbutton=1&locale=en`}
             width="100%"
             height="500"
             frameBorder="0"

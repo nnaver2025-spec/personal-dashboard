@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import yfinance as yf
 import feedparser
 import urllib.request
+import urllib.parse
 import json
+from deep_translator import GoogleTranslator
 from typing import Dict, List
 from datetime import datetime, timezone, timedelta
 import asyncio
@@ -20,10 +22,10 @@ app.add_middleware(
 )
 
 TV_SYMBOLS = {
-    "^GSPC": "SPX",
-    "^IXIC": "IXIC",
-    "^DJI": "DJI",
-    "^RUT": "RUT",
+    "^GSPC": "AMEX:SPY",
+    "^IXIC": "NASDAQ:QQQ",
+    "^DJI": "AMEX:DIA",
+    "^RUT": "AMEX:IWM",
     "^TNX": "US10Y",
     "^FVX": "US05Y",
     "DX-Y.NYB": "DXY",
@@ -96,6 +98,7 @@ async def get_market_data():
 @app.get("/api/news")
 async def get_news():
     def fetch_news():
+        translator = GoogleTranslator(source='auto', target='ko')
         news_list = []
         def fetch_feed(url, source_name):
             try:
@@ -104,15 +107,79 @@ async def get_news():
             except:
                 return []
                 
-        news_list.extend(fetch_feed("https://finance.yahoo.com/news/rssindex", "Yahoo Finance"))
-        news_list.extend(fetch_feed("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664", "CNBC"))
+        raw_news = []
+        raw_news.extend(fetch_feed("https://finance.yahoo.com/news/rssindex", "Yahoo Finance"))
+        raw_news.extend(fetch_feed("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664", "CNBC"))
+        raw_news.extend(fetch_feed("https://feeds.marketwatch.com/marketwatch/topstories", "MarketWatch"))
+        raw_news.extend(fetch_feed("https://seekingalpha.com/market_currents.xml", "Seeking Alpha"))
         
-        # We assume the user wants up to 20 recent news combined
-        return news_list[:20]
+        # Translate titles
+        translated_news = []
+        for item in raw_news[:20]:
+            try:
+                # Add a bit of timeout/safety but deep-translator is synchronous
+                translated_title = translator.translate(item["title"])
+                item["title_ko"] = translated_title
+            except Exception as e:
+                print(f"Translation error: {e}")
+                item["title_ko"] = item["title"]
+            translated_news.append(item)
+            
+        return translated_news
             
     loop = asyncio.get_event_loop()
     news_list = await loop.run_in_executor(None, fetch_news)
     return {"news": news_list}
+
+FRED_SERIES = {
+    "GDP": "GDP",
+    "Nonfarm Payrolls": "PAYEMS",
+    "Non-Farm": "PAYEMS",
+    "Unemployment Rate": "UNRATE",
+    "CPI": "CPIAUCSL",
+    "Core CPI": "CPILFESL",
+    "PPI": "PPIACO",
+    "Core PPI": "PPIFES",
+    "PCE": "PCE",
+    "Core PCE": "PCEPILFE",
+    "Retail Sales": "RSAFS",
+    "Industrial Production": "INDPRO",
+    "Durable Goods": "DGORDER",
+    "Housing Starts": "HOUST",
+    "Building Permits": "PERMIT",
+    "Existing Home Sales": "EXHOSLUSM495S",
+    "New Home Sales": "HSN1F",
+    "Consumer Confidence": "UMCSENT",
+    "Michigan": "UMCSENT",
+    "ISM Manufacturing": "MANEMP",
+    "ISM Services": "NMFCI",
+    "PMI": "MANEMP",
+    "Initial Jobless Claims": "ICSA",
+    "Jobless Claims": "ICSA",
+    "Continuing Jobless Claims": "CCSA",
+    "Trade Balance": "BOPGSTB",
+    "JOLTS": "JTSJOL",
+    "ADP": "ADPWNUSNERSA",
+    "Fed Funds Rate": "FEDFUNDS",
+    "Interest Rate": "FEDFUNDS",
+    "Treasury": "DGS10",
+    "10-Year": "DGS10",
+    "2-Year": "DGS2",
+    "Import Price": "IR",
+    "Export Price": "IQ",
+    "Capacity Utilization": "TCU",
+    "Factory Orders": "AMTMNO",
+    "Personal Income": "PI",
+    "Personal Spending": "PCE",
+}
+
+def get_fred_url(event_title: str) -> str:
+    """Match event title to FRED series and return URL."""
+    for keyword, series_id in FRED_SERIES.items():
+        if keyword.lower() in event_title.lower():
+            return f"https://fred.stlouisfed.org/series/{series_id}"
+    # Fallback: search on FRED
+    return f"https://fred.stlouisfed.org/search?st={urllib.parse.quote(event_title)}"
 
 CALENDAR_CACHE = {"data": [], "timestamp": 0}
 
@@ -125,6 +192,7 @@ async def get_calendar():
             return CALENDAR_CACHE["data"]
             
         try:
+            translator = GoogleTranslator(source='en', target='ko')
             req = urllib.request.Request(
                 "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
                 headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0'}
@@ -152,13 +220,21 @@ async def get_calendar():
                 day_key = dt_kst.strftime("%m월 %d일")
                 time_val = dt_kst.strftime("%H:%M")
                 
+                # Translate event title to Korean
+                event_title = item.get("title", "")
+                try:
+                    event_title_ko = translator.translate(event_title) if event_title else ""
+                except:
+                    event_title_ko = event_title
+                
                 if day_key not in grouped:
                     grouped[day_key] = []
                     
                 grouped[day_key].append({
                     "time": time_val,
                     "country": "US",
-                    "event": item.get("title", ""),
+                    "event": event_title_ko or event_title,
+                    "fred_url": get_fred_url(item.get("title", "")),
                     "actual": item.get("actual", "") or "-",
                     "forecast": item.get("forecast", "") or "-",
                     "previous": item.get("previous", "") or "-"

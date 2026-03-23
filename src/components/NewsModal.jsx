@@ -10,7 +10,7 @@ const NewsModal = ({ news, onClose }) => {
         <div className="full-news-list">
           {news && news.map((item, i) => (
             <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" className="news-item full-news-item">
-              <p className="news-title">{item.title}</p>
+              <p className="news-title">{item.title_ko || item.title}</p>
               <span className="news-source">{item.source}</span>
             </a>
           ))}

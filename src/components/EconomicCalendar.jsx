@@ -3,7 +3,12 @@ import React from 'react';
 const EconomicCalendar = ({ calendar }) => {
   return (
     <div className="card calendar-card">
-      <h3 className="section-title">미국 경제 캘린더</h3>
+      <div className="calendar-header">
+        <h3 className="section-title" style={{ marginBottom: 0 }}>미국 경제 캘린더</h3>
+        <a href="https://fred.stlouisfed.org/releases/calendar" target="_blank" rel="noopener noreferrer" className="fred-link">
+          📊 FRED 바로가기
+        </a>
+      </div>
       <div className="calendar-table">
         <div className="event-row table-header">
           <span className="ev-time">시간</span>
@@ -20,7 +25,7 @@ const EconomicCalendar = ({ calendar }) => {
               <div key={j} className="event-row">
                 <span className="ev-time">{ev.time}</span>
                 <span className="ev-flag">{ev.country === 'US' ? '🇺🇸' : ev.country}</span>
-                <span className="ev-name">{ev.event}</span>
+                <a href={ev.fred_url} target="_blank" rel="noopener noreferrer" className="ev-name ev-link">{ev.event}</a>
                 <span className="ev-actual">{ev.actual}</span>
                 <span className="ev-forecast text-secondary">{ev.forecast || '-'}</span>
                 <span className="ev-prev text-secondary">{ev.previous || '-'}</span>
@@ -32,6 +37,23 @@ const EconomicCalendar = ({ calendar }) => {
       <style dangerouslySetInnerHTML={{ __html: `
         .calendar-card {
           margin-top: 20px;
+        }
+        .calendar-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+        .fred-link {
+          font-size: 0.85rem;
+          color: #58a6ff;
+          text-decoration: none;
+          font-weight: 600;
+          transition: opacity 0.2s;
+        }
+        .fred-link:hover {
+          opacity: 0.8;
+          text-decoration: underline;
         }
         .calendar-day {
           margin-bottom: 16px;
@@ -61,6 +83,16 @@ const EconomicCalendar = ({ calendar }) => {
         }
         .event-row:last-child { border-bottom: none; }
         .ev-time { color: #94a3b8; }
+        .ev-link {
+          color: #58a6ff;
+          text-decoration: none;
+          cursor: pointer;
+          transition: color 0.2s;
+        }
+        .ev-link:hover {
+          color: #79c0ff;
+          text-decoration: underline;
+        }
         .ev-actual { font-weight: 600; text-align: right; }
         .ev-forecast, .ev-prev { text-align: right; }
       `}} />
